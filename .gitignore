@@ -1,0 +1,39 @@
+# Material del auxiliar / referencia
+MIA_Junio2026-main/
+aVerSiEstoEsDeTuTalla.bat
+[MIA]Enunciado_Proyecto1.pdf
+
+# Codex / asistentes / prompts
+.codex/
+codex/
+.codex-cache/
+.codex-*/
+.codex*
+*.codex
+prompts_codex/
+*.prompt.md
+.chatgpt/
+.openai/
+
+# Discos y archivos generados por el proyecto
+*.mia
+*.dsk
+*.dk
+discos/
+reports/
+reportes/
+Reporte*/
+Reportes*/
+
+# Go
+bin/
+build/
+*.exe
+*.test
+coverage.out
+
+# IDE / sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
