@@ -5,6 +5,7 @@ aVerSiEstoEsDeTuTalla.bat
 
 # Codex / asistentes / prompts
 .codex/
+.agents/
 codex/
 .codex-cache/
 .codex-*/
@@ -20,10 +21,10 @@ prompts_codex/
 *.dsk
 *.dk
 discos/
-reports/
-reportes/
-Reporte*/
-Reportes*/
+/reports/
+/reportes/
+/Reporte*/
+/Reportes*/
 
 # Go
 bin/

@@ -1,0 +1,34 @@
+mkdisk -size=20 -unit=M -path=/tmp/smoke_final.dsk
+fdisk -size=15 -unit=M -path=/tmp/smoke_final.dsk -name=Part1
+mount -path=/tmp/smoke_final.dsk -name=Part1
+mkfs -id=961A
+login -user=root -pass=123 -id=961A
+
+mkgrp -name=usuarios
+mkusr -user=user1 -pass=usuario -grp=usuarios
+mkdir -p -path=/home/docs
+mkfile -r -path=/home/docs/a.txt -s=75
+mkfile -r -path=/home/docs/b.txt -s=20
+cat -file=/home/docs/a.txt
+logout
+
+login -user=user1 -pass=usuario -id=961A
+cat -file=/home/docs/a.txt
+logout
+
+login -user=root -pass=123 -id=961A
+chgrp -user=user1 -grp=root
+rmusr -user=user1
+rmgrp -name=usuarios
+logout
+
+rep -id=961A -path=/tmp/smoke_reports/mbr.dot -name=mbr
+rep -id=961A -path=/tmp/smoke_reports/disk.dot -name=disk
+rep -id=961A -path=/tmp/smoke_reports/sb.dot -name=sb
+rep -id=961A -path=/tmp/smoke_reports/inode.dot -name=inode
+rep -id=961A -path=/tmp/smoke_reports/block.dot -name=block
+rep -id=961A -path=/tmp/smoke_reports/bm_inode.txt -name=bm_inode
+rep -id=961A -path=/tmp/smoke_reports/bm_block.txt -name=bm_block
+rep -id=961A -path=/tmp/smoke_reports/file_a.txt -path_file_ls=/home/docs/a.txt -name=file
+rep -id=961A -path=/tmp/smoke_reports/ls_root.dot -path_file_ls=/ -name=ls
+rep -id=961A -path=/tmp/smoke_reports/tree.dot -name=tree
