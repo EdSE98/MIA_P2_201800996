@@ -9,6 +9,7 @@ import (
 
 	"mia_p1_201800996/internal/disk"
 	"mia_p1_201800996/internal/fs"
+	"mia_p1_201800996/internal/graphviz"
 	"mia_p1_201800996/internal/mount"
 	"mia_p1_201800996/internal/partition"
 	"mia_p1_201800996/internal/session"
@@ -27,14 +28,14 @@ func TestEXT2Reports(t *testing.T) {
 	}{
 		{"sb", filepath.Join(dir, "sb.dot"), nil, []string{"s_filesystem_type", "s_magic", "s_inode_start"}},
 		{"inode", filepath.Join(dir, "inode.dot"), nil, []string{"Inodo 0", "Inodo 1", "i_block"}},
-		{"block", filepath.Join(dir, "block.dot"), nil, []string{"Bloque", "users.txt", "0123456789"}},
+		{"block", filepath.Join(dir, "block.dot"), nil, []string{"Bloque", "users.txt", "0123456789", "PointerBlock"}},
 		{"bm_inode", filepath.Join(dir, "bm_inode.txt"), nil, []string{"1 1", "\n"}},
 		{"bm_block", filepath.Join(dir, "bm_block.txt"), nil, []string{"1 1", "\n"}},
 		{"bm_bloc", filepath.Join(dir, "bm_bloc.txt"), nil, []string{"1 1", "\n"}},
 		{"file", filepath.Join(dir, "file_a.txt"), map[string]string{"path_file_ls": "/home/docs/a.txt"}, []string{"Archivo: /home/docs/a.txt", "0123456789"}},
 		{"ls", filepath.Join(dir, "ls_root.dot"), map[string]string{"path_file_ls": "/"}, []string{"users.txt", "home"}},
 		{"ls", filepath.Join(dir, "ls_docs.dot"), map[string]string{"path_file_ls": "/home/docs"}, []string{"a.txt", "b.txt"}},
-		{"tree", filepath.Join(dir, "tree.dot"), nil, []string{"Inodo 0", "users.txt", "home", "->"}},
+		{"tree", filepath.Join(dir, "tree.dot"), nil, []string{"Inodo 0", "users.txt", "home", "PointerBlock", "->"}},
 	}
 
 	for _, tt := range cases {
@@ -62,6 +63,35 @@ func TestEXT2Reports(t *testing.T) {
 	after := fileSize(t, diskPath)
 	if after != before {
 		t.Fatalf("disk changed size from %d to %d", before, after)
+	}
+}
+
+func TestBitmapReportsRenderVisualFormats(t *testing.T) {
+	setupEXT2ReportFS(t)
+	dir := t.TempDir()
+	for _, name := range []string{"bm_inode", "bm_block"} {
+		t.Run(name, func(t *testing.T) {
+			output := filepath.Join(dir, name+".pdf")
+			var out bytes.Buffer
+			if err := Generate(map[string]string{"name": name, "path": output, "id": "961A"}, &out); err != nil {
+				t.Fatalf("Generate failed: %v", err)
+			}
+			dotPath := filepath.Join(dir, name+".dot")
+			if _, err := os.Stat(dotPath); err != nil {
+				t.Fatalf("expected dot fallback/auxiliary file: %v\nout=%s", err, out.String())
+			}
+			dot := readFile(t, dotPath)
+			if !strings.Contains(dot, name) || !strings.Contains(dot, "1 1") {
+				t.Fatalf("unexpected bitmap dot:\n%s", dot)
+			}
+			if graphviz.IsDotAvailable() {
+				if _, err := os.Stat(output); err != nil {
+					t.Fatalf("expected rendered pdf: %v\nout=%s", err, out.String())
+				}
+			} else if !strings.Contains(out.String(), "Advertencia") {
+				t.Fatalf("expected Graphviz warning, got:\n%s", out.String())
+			}
+		})
 	}
 }
 
@@ -126,6 +156,9 @@ func setupEXT2ReportFS(t *testing.T) string {
 	}
 	if err := fs.Mkfile(path, currentReportPartitionStart(t), "/home/docs/b.txt", false, 20, "", actor); err != nil {
 		t.Fatalf("mkfile b failed: %v", err)
+	}
+	if err := fs.Mkfile(path, currentReportPartitionStart(t), "/home/docs/large.txt", false, 900, "", actor); err != nil {
+		t.Fatalf("mkfile large failed: %v", err)
 	}
 	_ = session.Logout()
 	return path

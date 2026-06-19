@@ -60,11 +60,15 @@ Los IDs se aceptan sin distinguir mayusculas/minusculas.
 ## Limitaciones controladas
 
 - Los nombres de archivo/carpeta dentro del EXT2 tienen maximo 12 bytes porque `Content.BName` es `[12]byte`.
-- Archivos y directorios usan hasta 12 bloques directos.
-- Los apuntadores indirectos estan definidos en las estructuras, pero no se crean todavia en las operaciones de archivos/directorios.
+- Los archivos soportan 12 bloques directos y un apuntador simple indirecto de hasta 16 bloques adicionales.
+- Los directorios usan hasta 12 bloques directos.
+- No se implementan apuntadores doble/triple indirectos.
 - Los reportes no requieren sesion activa; usan el ID de montaje.
 
 ## Scripts incluidos
 
 - `smoke_final_201800996.smia`: flujo compacto completo para validacion final.
 - `aVerSiEstoEsDeTuTalla_IDS_201800996.smia`: copia adaptada del script del auxiliar con IDs reales esperados para el carnet `201800996`.
+- `cali1_IDS_201800996.smia` y `cali1_IDS_201800996_nopause.smia`: calificacion parte 1 con IDs reales.
+- `cali2_continuacion_IDS_201800996.smia` y `cali2_continuacion_IDS_201800996_nopause.smia`: calificacion parte 2 para continuar despues de cali1.
+- `cali2_standalone_IDS_201800996.smia` y `cali2_standalone_IDS_201800996_nopause.smia`: calificacion parte 2 con preparacion minima propia.

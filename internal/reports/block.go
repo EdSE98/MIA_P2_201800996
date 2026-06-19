@@ -37,6 +37,19 @@ func BuildBlockDot(file *os.File, sb structs.SuperBlock) (string, error) {
 			}
 			b.WriteString("    </TABLE>\n")
 			b.WriteString("  >];\n")
+		case 'P':
+			block, err := fs.ReadPointerBlock(file, sb, index)
+			if err != nil {
+				return "", err
+			}
+			b.WriteString(fmt.Sprintf("  block_%d [label=<\n", index))
+			b.WriteString("    <TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n")
+			b.WriteString(fmt.Sprintf("      <TR><TD COLSPAN=\"2\"><B>PointerBlock %d</B></TD></TR>\n", index))
+			for i, pointer := range block.BPointers {
+				row(&b, fmt.Sprintf("b_pointer[%d]", i), fmt.Sprintf("%d", pointer))
+			}
+			b.WriteString("    </TABLE>\n")
+			b.WriteString("  >];\n")
 		default:
 			block, err := fs.ReadFileBlock(file, sb, index)
 			if err != nil {
@@ -68,6 +81,18 @@ func referencedBlockTypes(file *os.File, sb structs.SuperBlock) (map[int32]byte,
 		for i := 0; i < 12 && i < len(inode.IBlock); i++ {
 			if inode.IBlock[i] >= 0 {
 				result[inode.IBlock[i]] = inode.IType
+			}
+		}
+		if inode.IType == '1' && len(inode.IBlock) > 12 && inode.IBlock[12] >= 0 {
+			result[inode.IBlock[12]] = 'P'
+			pointer, err := fs.ReadPointerBlock(file, sb, inode.IBlock[12])
+			if err != nil {
+				return nil, err
+			}
+			for _, blockIndex := range pointer.BPointers {
+				if blockIndex >= 0 {
+					result[blockIndex] = '1'
+				}
 			}
 		}
 	}

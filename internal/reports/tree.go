@@ -44,22 +44,66 @@ func writeTreeInode(b *strings.Builder, file *os.File, sb structs.SuperBlock, in
 	b.WriteString("    </TABLE>\n")
 	b.WriteString("  >];\n")
 
+	if inode.IType == '0' {
+		for i := 0; i < 12 && i < len(inode.IBlock); i++ {
+			blockIndex := inode.IBlock[i]
+			if blockIndex < 0 {
+				continue
+			}
+			b.WriteString(fmt.Sprintf("  inode_%d -> block_%d;\n", inodeIndex, blockIndex))
+			if err := writeTreeFolderBlock(b, file, sb, blockIndex, visited); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
 	for i := 0; i < 12 && i < len(inode.IBlock); i++ {
 		blockIndex := inode.IBlock[i]
 		if blockIndex < 0 {
 			continue
 		}
 		b.WriteString(fmt.Sprintf("  inode_%d -> block_%d;\n", inodeIndex, blockIndex))
-		if inode.IType == '0' {
-			if err := writeTreeFolderBlock(b, file, sb, blockIndex, visited); err != nil {
-				return err
+		if err := writeTreeFileBlock(b, file, sb, blockIndex); err != nil {
+			return err
+		}
+	}
+	if len(inode.IBlock) > 12 && inode.IBlock[12] >= 0 {
+		pointerIndex := inode.IBlock[12]
+		b.WriteString(fmt.Sprintf("  inode_%d -> block_%d [label=\"indirecto\"];\n", inodeIndex, pointerIndex))
+		if err := writeTreePointerBlock(b, file, sb, pointerIndex); err != nil {
+			return err
+		}
+		pointer, err := fs.ReadPointerBlock(file, sb, pointerIndex)
+		if err != nil {
+			return err
+		}
+		for _, blockIndex := range pointer.BPointers {
+			if blockIndex < 0 {
+				continue
 			}
-		} else {
+			b.WriteString(fmt.Sprintf("  block_%d -> block_%d;\n", pointerIndex, blockIndex))
 			if err := writeTreeFileBlock(b, file, sb, blockIndex); err != nil {
 				return err
 			}
 		}
 	}
+	return nil
+}
+
+func writeTreePointerBlock(b *strings.Builder, file *os.File, sb structs.SuperBlock, blockIndex int32) error {
+	block, err := fs.ReadPointerBlock(file, sb, blockIndex)
+	if err != nil {
+		return err
+	}
+	b.WriteString(fmt.Sprintf("  block_%d [label=<\n", blockIndex))
+	b.WriteString("    <TABLE BORDER=\"1\" CELLBORDER=\"1\" CELLSPACING=\"0\">\n")
+	b.WriteString(fmt.Sprintf("      <TR><TD COLSPAN=\"2\"><B>PointerBlock %d</B></TD></TR>\n", blockIndex))
+	for i, pointer := range block.BPointers {
+		row(b, fmt.Sprintf("pointer[%d]", i), fmt.Sprintf("%d", pointer))
+	}
+	b.WriteString("    </TABLE>\n")
+	b.WriteString("  >];\n")
 	return nil
 }
 

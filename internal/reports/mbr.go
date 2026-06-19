@@ -63,7 +63,15 @@ func BuildMBRDot(diskPath string, mbr structs.MBR) (string, error) {
 }
 
 func row(b *strings.Builder, key string, value string) {
-	b.WriteString(fmt.Sprintf("      <TR><TD><B>%s</B></TD><TD>%s</TD></TR>\n", esc(key), esc(value)))
+	safeKey := esc(key)
+	safeValue := esc(value)
+	if safeKey == "" {
+		safeKey = "&#160;"
+	}
+	if safeValue == "" {
+		safeValue = "&#160;"
+	}
+	b.WriteString(fmt.Sprintf("      <TR><TD><B>%s</B></TD><TD>%s</TD></TR>\n", safeKey, safeValue))
 }
 
 func diskSize(path string) (int64, error) {

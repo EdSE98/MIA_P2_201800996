@@ -111,6 +111,10 @@ func Create(opts CreateOptions) error {
 		return fmt.Errorf("ya existe una particion extendida")
 	}
 
+	if sizeBytes == int64(mbr.MbrTamano) && len(activePrimaryExtended(mbr)) == 0 {
+		sizeBytes = int64(mbr.MbrTamano) - disk.SizeOfMBR()
+	}
+
 	slot := firstEmptySlot(mbr)
 	if slot == -1 {
 		return fmt.Errorf("no se pueden crear mas de 4 particiones primarias/extendidas")
@@ -152,6 +156,16 @@ func Create(opts CreateOptions) error {
 		return fmt.Errorf("el disco cambio de tamaño inesperadamente")
 	}
 	return nil
+}
+
+func activePrimaryExtended(mbr structs.MBR) []structs.Partition {
+	var parts []structs.Partition
+	for _, part := range mbr.MbrPartitions {
+		if isActivePartition(part) {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }
 
 func SearchPartition(path string, name string) (structs.Partition, int, error) {

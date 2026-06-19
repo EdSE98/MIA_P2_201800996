@@ -38,6 +38,10 @@ func TestScriptRunsDiskReports(t *testing.T) {
 	if err := runner.RunScript(scriptPath); err != nil {
 		t.Fatalf("RunScript failed: %v", err)
 	}
+	output := out.String()
+	if !strings.Contains(output, "Particiones montadas:") || !strings.Contains(output, "961A") || !strings.Contains(output, "Part1") {
+		t.Fatalf("expected mounted partition listing, got:\n%s", output)
+	}
 
 	if _, err := os.Stat(mbrReport); err != nil {
 		t.Fatalf("expected mbr report: %v\noutput:\n%s", err, out.String())

@@ -73,6 +73,52 @@ func TestMkdirWithoutParentFails(t *testing.T) {
 	}
 }
 
+func TestMkdirExistingFinalDoesNotDuplicateEntry(t *testing.T) {
+	resetMount(t)
+	path := setupFormattedFS(t)
+	actor := rootActor()
+
+	if err := Mkdir(path, activePartitionStart(t), "/home/archivos/mia/carpeta2/a10", true, actor); err != nil {
+		t.Fatalf("initial Mkdir failed: %v", err)
+	}
+	sbBefore := readSBByPath(t, path)
+	err := Mkdir(path, activePartitionStart(t), "/home/archivos/mia/carpeta2/a10", false, actor)
+	if err == nil || !strings.Contains(err.Error(), "la carpeta ya existe: /home/archivos/mia/carpeta2/a10") {
+		t.Fatalf("expected existing folder error, got %v", err)
+	}
+	sbAfter := readSBByPath(t, path)
+	if sbAfter.SFreeInodesCount != sbBefore.SFreeInodesCount || sbAfter.SFreeBlocksCount != sbBefore.SFreeBlocksCount {
+		t.Fatalf("existing mkdir changed free counts: before=%#v after=%#v", sbBefore, sbAfter)
+	}
+
+	file, _, err := disk.OpenReadWrite(path)
+	if err != nil {
+		t.Fatalf("OpenReadWrite failed: %v", err)
+	}
+	defer file.Close()
+	sb := activeSuperBlock(t, file)
+	_, parent, err := ResolvePath(file, sb, "/home/archivos/mia/carpeta2")
+	if err != nil {
+		t.Fatalf("Resolve parent failed: %v", err)
+	}
+	if got := countDirectoryEntry(t, file, sb, parent, "a10"); got != 1 {
+		t.Fatalf("expected one a10 entry, got %d", got)
+	}
+}
+
+func TestMkdirFinalExistingFileFails(t *testing.T) {
+	resetMount(t)
+	path := setupFormattedFS(t)
+	actor := rootActor()
+	if err := Mkfile(path, activePartitionStart(t), "/home/a.txt", true, 10, "", actor); err != nil {
+		t.Fatalf("Mkfile failed: %v", err)
+	}
+	err := Mkdir(path, activePartitionStart(t), "/home/a.txt", false, actor)
+	if err == nil || !strings.Contains(err.Error(), "ya existe un archivo con ese nombre: /home/a.txt") {
+		t.Fatalf("expected existing file error, got %v", err)
+	}
+}
+
 func TestMkfileReadOverwriteAndCat(t *testing.T) {
 	resetMount(t)
 	path := setupFormattedFS(t)
@@ -153,8 +199,87 @@ func TestMkfileReadOverwriteAndCat(t *testing.T) {
 		t.Fatalf("cat order mismatch: %q", out)
 	}
 
-	if err := Mkfile(path, activePartitionStart(t), "/home/big.txt", false, directBlockLimit*BlockSize+1, "", actor); err == nil {
-		t.Fatal("expected direct capacity error")
+	if err := Mkfile(path, activePartitionStart(t), "/home/big.txt", false, int64(maxFileDataBlocks*BlockSize+1), "", actor); err == nil {
+		t.Fatal("expected file capacity error")
+	}
+	if after := testFileSize(t, path); after != before {
+		t.Fatalf("disk size changed from %d to %d", before, after)
+	}
+}
+
+func TestMkfileSimpleIndirectReadAndShrink(t *testing.T) {
+	resetMount(t)
+	path := setupFormattedFS(t)
+	actor := rootActor()
+	before := testFileSize(t, path)
+	largeSize := int64(directBlockLimit*BlockSize + 75)
+
+	if err := Mkfile(path, activePartitionStart(t), "/home/grande.txt", true, largeSize, "", actor); err != nil {
+		t.Fatalf("Mkfile large failed: %v", err)
+	}
+	file, _, err := disk.OpenReadWrite(path)
+	if err != nil {
+		t.Fatalf("OpenReadWrite failed: %v", err)
+	}
+	sb := activeSuperBlock(t, file)
+	index, inode, err := ResolvePath(file, sb, "/home/grande.txt")
+	if err != nil {
+		t.Fatalf("Resolve large failed: %v", err)
+	}
+	if inode.IBlock[simpleIndirectIndex] < 0 {
+		t.Fatal("expected simple indirect pointer block")
+	}
+	pointerIndex := inode.IBlock[simpleIndirectIndex]
+	pointer, err := ReadPointerBlock(file, sb, pointerIndex)
+	if err != nil {
+		t.Fatalf("ReadPointerBlock failed: %v", err)
+	}
+	if pointer.BPointers[0] < 0 {
+		t.Fatal("expected first indirect data block")
+	}
+	content, err := ReadFileContent(file, sb, inode)
+	if err != nil {
+		t.Fatalf("ReadFileContent failed: %v", err)
+	}
+	if len(content) != int(largeSize) || string(content[:10]) != "0123456789" {
+		t.Fatalf("unexpected large content len=%d", len(content))
+	}
+	file.Close()
+
+	out, err := Cat(path, activePartitionStart(t), map[string]string{"file": "/home/grande.txt"}, actor)
+	if err != nil {
+		t.Fatalf("Cat large failed: %v", err)
+	}
+	if len(out) != int(largeSize) || strings.ContainsRune(out, '\x00') {
+		t.Fatalf("cat should read complete indirect content, len=%d", len(out))
+	}
+
+	sbBeforeShrink := readSBByPath(t, path)
+	if err := Mkfile(path, activePartitionStart(t), "/home/grande.txt", false, 10, "", actor); err != nil {
+		t.Fatalf("overwrite shrink large failed: %v", err)
+	}
+	file, _, err = disk.OpenReadWrite(path)
+	if err != nil {
+		t.Fatalf("OpenReadWrite failed: %v", err)
+	}
+	defer file.Close()
+	sb = activeSuperBlock(t, file)
+	inode, err = ReadInode(file, sb, index)
+	if err != nil {
+		t.Fatalf("ReadInode failed: %v", err)
+	}
+	if inode.IBlock[simpleIndirectIndex] != -1 {
+		t.Fatalf("expected pointer block freed, got %d", inode.IBlock[simpleIndirectIndex])
+	}
+	bitmap, err := ReadBlockBitmap(file, sb)
+	if err != nil {
+		t.Fatalf("ReadBlockBitmap failed: %v", err)
+	}
+	if bitmap[pointerIndex] != 0 {
+		t.Fatalf("expected pointer block bitmap to be free")
+	}
+	if sb.SFreeBlocksCount <= sbBeforeShrink.SFreeBlocksCount {
+		t.Fatalf("expected free block count to increase after freeing pointer")
 	}
 	if after := testFileSize(t, path); after != before {
 		t.Fatalf("disk size changed from %d to %d", before, after)
@@ -237,6 +362,27 @@ func readSBByPath(t *testing.T, path string) structs.SuperBlock {
 	}
 	defer file.Close()
 	return activeSuperBlock(t, file)
+}
+
+func countDirectoryEntry(t *testing.T, file *os.File, sb structs.SuperBlock, inode structs.Inode, name string) int {
+	t.Helper()
+	count := 0
+	for i := 0; i < directBlockLimit && i < len(inode.IBlock); i++ {
+		blockIndex := inode.IBlock[i]
+		if blockIndex < 0 {
+			continue
+		}
+		block, err := ReadFolderBlock(file, sb, blockIndex)
+		if err != nil {
+			t.Fatalf("ReadFolderBlock failed: %v", err)
+		}
+		for _, content := range block.BContent {
+			if content.BInodo >= 0 && structs.FixedBytesToString(content.BName[:]) == name {
+				count++
+			}
+		}
+	}
+	return count
 }
 
 func readFileFromFS(t *testing.T, path string, fsPath string) []byte {

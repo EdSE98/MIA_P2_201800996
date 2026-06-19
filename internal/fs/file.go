@@ -98,13 +98,13 @@ func ReadFileContent(file *os.File, sb structs.SuperBlock, inode structs.Inode) 
 	}
 	remaining := int(inode.ISize)
 	content := make([]byte, 0, remaining)
-	for i := 0; i < directBlockLimit && i < len(inode.IBlock); i++ {
+	blocks, err := FileDataBlockIndices(file, sb, inode)
+	if err != nil {
+		return nil, err
+	}
+	for _, blockIndex := range blocks {
 		if remaining <= 0 {
 			break
-		}
-		blockIndex := inode.IBlock[i]
-		if blockIndex < 0 {
-			continue
 		}
 		block, err := ReadFileBlock(file, sb, blockIndex)
 		if err != nil {
@@ -125,14 +125,17 @@ func ReadFileContent(file *os.File, sb structs.SuperBlock, inode structs.Inode) 
 
 func WriteFileContent(file *os.File, partitionStart int64, sb *structs.SuperBlock, inodeIndex int32, inode *structs.Inode, content []byte) error {
 	blocks := splitBytesIntoFileBlocks(content)
-	if len(blocks) > directBlockLimit {
-		return fmt.Errorf("archivo excede capacidad directa soportada")
+	if len(blocks) > maxFileDataBlocks {
+		return fmt.Errorf("archivo excede capacidad soportada")
 	}
 	bitmap, err := ReadBlockBitmap(file, *sb)
 	if err != nil {
 		return err
 	}
-	currentBlocks := UsedDirectBlocks(*inode)
+	currentBlocks, pointerIndex, _, hasPointer, err := currentFileBlockLayout(file, *sb, *inode)
+	if err != nil {
+		return err
+	}
 	needed := len(blocks)
 	if needed > len(currentBlocks) {
 		allocated, err := AllocateBlocks(bitmap, needed-len(currentBlocks))
@@ -157,11 +160,46 @@ func WriteFileContent(file *os.File, partitionStart int64, sb *structs.SuperBloc
 		currentBlocks = currentBlocks[:needed]
 	}
 
+	needsPointer := needed > directBlockLimit
+	if needsPointer && !hasPointer {
+		allocated, err := AllocateBlocks(bitmap, 1)
+		if err != nil {
+			return err
+		}
+		pointerIndex = allocated[0]
+		hasPointer = true
+		sb.SFreeBlocksCount--
+	}
+	if !needsPointer && hasPointer {
+		if pointerIndex < 0 || pointerIndex >= int32(len(bitmap)) {
+			return fmt.Errorf("bloque de apuntadores fuera de rango: %d", pointerIndex)
+		}
+		bitmap[pointerIndex] = 0
+		sb.SFreeBlocksCount++
+		if err := WritePointerBlock(file, *sb, pointerIndex, structs.NewEmptyPointerBlock()); err != nil {
+			return err
+		}
+		pointerIndex = -1
+		hasPointer = false
+	}
+
 	for i := range inode.IBlock {
 		inode.IBlock[i] = -1
 	}
-	for i, blockIndex := range currentBlocks {
-		inode.IBlock[i] = blockIndex
+	for i := 0; i < needed && i < directBlockLimit; i++ {
+		inode.IBlock[i] = currentBlocks[i]
+	}
+	if needsPointer {
+		pointer := structs.NewEmptyPointerBlock()
+		inode.IBlock[simpleIndirectIndex] = pointerIndex
+		for i := directBlockLimit; i < needed; i++ {
+			pointer.BPointers[i-directBlockLimit] = currentBlocks[i]
+		}
+		if err := WritePointerBlock(file, *sb, pointerIndex, pointer); err != nil {
+			return err
+		}
+	}
+	for i, blockIndex := range currentBlocks[:needed] {
 		if err := WriteFileBlock(file, *sb, blockIndex, blocks[i]); err != nil {
 			return err
 		}
@@ -176,6 +214,38 @@ func WriteFileContent(file *os.File, partitionStart int64, sb *structs.SuperBloc
 		return err
 	}
 	return WriteSuperBlock(file, partitionStart, *sb)
+}
+
+func FileDataBlockIndices(file *os.File, sb structs.SuperBlock, inode structs.Inode) ([]int32, error) {
+	blocks, _, _, _, err := currentFileBlockLayout(file, sb, inode)
+	return blocks, err
+}
+
+func currentFileBlockLayout(file *os.File, sb structs.SuperBlock, inode structs.Inode) ([]int32, int32, structs.PointerBlock, bool, error) {
+	blocks := make([]int32, 0, maxFileDataBlocks)
+	for i := 0; i < directBlockLimit && i < len(inode.IBlock); i++ {
+		if inode.IBlock[i] >= 0 {
+			blocks = append(blocks, inode.IBlock[i])
+		}
+	}
+	pointerIndex := int32(-1)
+	pointer := structs.NewEmptyPointerBlock()
+	hasPointer := false
+	if simpleIndirectIndex < len(inode.IBlock) && inode.IBlock[simpleIndirectIndex] >= 0 {
+		pointerIndex = inode.IBlock[simpleIndirectIndex]
+		var err error
+		pointer, err = ReadPointerBlock(file, sb, pointerIndex)
+		if err != nil {
+			return nil, -1, structs.PointerBlock{}, false, err
+		}
+		hasPointer = true
+		for _, blockIndex := range pointer.BPointers {
+			if blockIndex >= 0 {
+				blocks = append(blocks, blockIndex)
+			}
+		}
+	}
+	return blocks, pointerIndex, pointer, hasPointer, nil
 }
 
 func Cat(diskPath string, partitionStart int64, params map[string]string, actor Actor) (string, error) {

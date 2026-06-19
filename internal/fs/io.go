@@ -82,6 +82,24 @@ func WriteFileBlock(file *os.File, sb structs.SuperBlock, blockIndex int32, bloc
 	return binio.WriteStructAt(file, BlockOffset(sb, blockIndex), block)
 }
 
+func ReadPointerBlock(file *os.File, sb structs.SuperBlock, blockIndex int32) (structs.PointerBlock, error) {
+	if err := validateIndex("bloque", blockIndex, sb.SBlocksCount); err != nil {
+		return structs.PointerBlock{}, err
+	}
+	var block structs.PointerBlock
+	if err := binio.ReadStructAt(file, BlockOffset(sb, blockIndex), &block); err != nil {
+		return structs.PointerBlock{}, err
+	}
+	return block, nil
+}
+
+func WritePointerBlock(file *os.File, sb structs.SuperBlock, blockIndex int32, block structs.PointerBlock) error {
+	if err := validateIndex("bloque", blockIndex, sb.SBlocksCount); err != nil {
+		return err
+	}
+	return binio.WriteStructAt(file, BlockOffset(sb, blockIndex), block)
+}
+
 func ReadRootUsersFile(file *os.File, sb structs.SuperBlock) (string, error) {
 	inode, err := ReadInode(file, sb, 1)
 	if err != nil {

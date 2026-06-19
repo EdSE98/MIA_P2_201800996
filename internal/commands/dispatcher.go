@@ -92,6 +92,7 @@ func (d *Dispatcher) Execute(cmd Command) (bool, error) {
 			fmt.Fprintf(d.out, "Advertencia: montando particion extendida %s\n", mounted.PartitionName)
 		}
 		fmt.Fprintf(d.out, "Particion montada con ID: %s\n", mounted.ID)
+		d.printMountedPartitions()
 		return false, nil
 	case "unmount":
 		id := cmd.Params["id"]
@@ -217,6 +218,15 @@ func (d *Dispatcher) Execute(cmd Command) (bool, error) {
 		}
 		fmt.Fprintf(d.out, "[STUB] %s recibido con params: %s flags: %s\n", cmd.Name, formatParams(cmd.Params), formatFlags(cmd.Flags))
 		return false, nil
+	}
+}
+
+func (d *Dispatcher) printMountedPartitions() {
+	mounted := mount.Global.List()
+	fmt.Fprintln(d.out, "Particiones montadas:")
+	fmt.Fprintln(d.out, "ID\tDisco\tParticion")
+	for _, item := range mounted {
+		fmt.Fprintf(d.out, "%s\t%s\t%s\n", item.ID, item.DiskPath, item.PartitionName)
 	}
 }
 

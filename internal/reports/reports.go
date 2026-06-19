@@ -3,6 +3,7 @@ package reports
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"mia_p1_201800996/internal/disk"
@@ -128,10 +129,19 @@ func generateBitmapReport(reportName string, outputPath string, id string, out i
 	if err != nil {
 		return err
 	}
-	if err := writePlainText(outputPath, BuildBitmapText(bitmap)); err != nil {
-		return err
+	if strings.EqualFold(filepath.Ext(outputPath), ".txt") {
+		if err := writePlainText(outputPath, BuildBitmapText(bitmap)); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "Reporte %s generado: %s\n", reportName, outputPath)
+		return nil
 	}
-	fmt.Fprintf(out, "Reporte %s generado: %s\n", reportName, outputPath)
+	dotPath, err := writeDotAndRender(outputPath, BuildBitmapDot(reportName, bitmap))
+	if err != nil {
+		fmt.Fprintf(out, "Advertencia: %v\n", err)
+		return nil
+	}
+	fmt.Fprintf(out, "Reporte %s generado. DOT: %s\n", reportName, dotPath)
 	return nil
 }
 

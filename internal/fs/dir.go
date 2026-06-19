@@ -39,7 +39,10 @@ func Mkdir(diskPath string, partitionStart int64, path string, recursive bool, a
 		}
 		if ok {
 			if nextInode.IType != '0' {
-				return fmt.Errorf("ya existe un archivo con ese nombre: %s", part)
+				return fmt.Errorf("ya existe un archivo con ese nombre: %s", path)
+			}
+			if i == len(parts)-1 {
+				return fmt.Errorf("la carpeta ya existe: %s", path)
 			}
 			currentIndex = nextIndex
 			current = nextInode
@@ -129,6 +132,10 @@ func AddDirectoryEntry(file *os.File, sb *structs.SuperBlock, dirIndex int32, di
 			return err
 		}
 		for j := range block.BContent {
+			entryName := structs.FixedBytesToString(block.BContent[j].BName[:])
+			if block.BContent[j].BInodo >= 0 && entryName == name {
+				return fmt.Errorf("ya existe una entrada con ese nombre: %s", name)
+			}
 			if block.BContent[j].BInodo >= 0 {
 				continue
 			}

@@ -8,7 +8,12 @@ import (
 	"mia_p1_201800996/internal/structs"
 )
 
-const directBlockLimit = 12
+const (
+	directBlockLimit         = 12
+	simpleIndirectIndex      = 12
+	simpleIndirectBlockLimit = 16
+	maxFileDataBlocks        = directBlockLimit + simpleIndirectBlockLimit
+)
 
 func WriteRootUsersFile(file *os.File, sb structs.SuperBlock, content string) (structs.SuperBlock, error) {
 	inode, err := ReadInode(file, sb, 1)

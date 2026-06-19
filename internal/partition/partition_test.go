@@ -77,6 +77,26 @@ func TestCreateExtendedAndRejectSecondExtended(t *testing.T) {
 	assertDiskSize(t, path, 1024*1024)
 }
 
+func TestCreatePartitionUsingWholeDiskLeavesMBRSpace(t *testing.T) {
+	path := makeDisk(t, "whole-disk.mia")
+	if err := Create(CreateOptions{Size: 1, Unit: "M", Path: path, Type: "E", Name: "Ext1"}); err != nil {
+		t.Fatalf("Create whole disk extended failed: %v", err)
+	}
+	mbr, err := disk.ReadMBR(path)
+	if err != nil {
+		t.Fatalf("ReadMBR failed: %v", err)
+	}
+	part := mbr.MbrPartitions[0]
+	if part.PartStart != int32(disk.SizeOfMBR()) {
+		t.Fatalf("start = %d, want %d", part.PartStart, disk.SizeOfMBR())
+	}
+	wantSize := int32(1024*1024 - disk.SizeOfMBR())
+	if part.PartSize != wantSize {
+		t.Fatalf("size = %d, want %d", part.PartSize, wantSize)
+	}
+	assertDiskSize(t, path, 1024*1024)
+}
+
 func TestCreateLogicalWithoutExtendedFails(t *testing.T) {
 	path := makeDisk(t, "logical-no-ext.mia")
 	err := Create(CreateOptions{Size: 100, Unit: "K", Path: path, Type: "L", Name: "Log1"})
