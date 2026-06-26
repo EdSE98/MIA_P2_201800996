@@ -9,14 +9,18 @@ func ListMounts() []dto.MountResponse {
 	mounted := mount.Global.List()
 	result := make([]dto.MountResponse, 0, len(mounted))
 	for _, item := range mounted {
-		result = append(result, dto.MountResponse{
-			ID:            item.ID,
-			DiskPath:      item.DiskPath,
-			PartitionName: item.PartitionName,
-			PartitionType: string([]byte{item.PartitionType}),
-			Start:         item.Start,
-			Size:          item.Size,
-		})
+		result = append(result, mountToDTO(item))
 	}
 	return result
+}
+
+func mountToDTO(item mount.MountedPartition) dto.MountResponse {
+	return dto.MountResponse{
+		ID:            item.ID,
+		Path:          item.DiskPath,
+		Name:          item.PartitionName,
+		PartitionType: string([]byte{item.PartitionType}),
+		Start:         item.Start,
+		Size:          item.Size,
+	}
 }

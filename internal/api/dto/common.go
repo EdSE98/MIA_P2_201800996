@@ -17,8 +17,8 @@ func Error(message string) Response {
 
 type MountResponse struct {
 	ID            string `json:"id"`
-	DiskPath      string `json:"diskPath"`
-	PartitionName string `json:"partitionName"`
+	Path          string `json:"path"`
+	Name          string `json:"name"`
 	PartitionType string `json:"partitionType"`
 	Start         int32  `json:"start"`
 	Size          int32  `json:"size"`
