@@ -21,6 +21,9 @@ func NewRouter() http.Handler {
 	mux.HandleFunc("/api/unmount", handlers.Unmount)
 	mux.HandleFunc("/api/mkfs", handlers.Mkfs)
 	mux.HandleFunc("/api/reports", handlers.Reports)
+	mux.HandleFunc("/api/fs/list", handlers.FSList)
+	mux.HandleFunc("/api/fs/read", handlers.FSRead)
+	mux.HandleFunc("/api/fs/stat", handlers.FSStat)
 
 	return recoverJSON(cors(mux))
 }
