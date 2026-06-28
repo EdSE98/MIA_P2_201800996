@@ -88,6 +88,46 @@ func TestScriptRunsEditAndRename(t *testing.T) {
 	}
 }
 
+func TestScriptRunsRemove(t *testing.T) {
+	resetCLIManagers(t)
+	dir := t.TempDir()
+	diskPath := filepath.Join(dir, "remove.mia")
+	scriptPath := filepath.Join(dir, "remove.smia")
+	script := strings.Join([]string{
+		"mkdisk -size=10 -unit=M -path=\"" + diskPath + "\"",
+		"fdisk -size=8 -unit=M -path=\"" + diskPath + "\" -name=Part1",
+		"mount -path=\"" + diskPath + "\" -name=Part1",
+		"mkfs -id=961A",
+		"login -user=root -pass=123 -id=961A",
+		"mkdir -p -path=/home/docs/sub",
+		"mkfile -path=/home/docs/a.txt -size=20",
+		"mkfile -path=/home/docs/sub/b.txt -size=150",
+		"remove -path=/home/docs/a.txt",
+		"remove -path=/home/docs",
+		"cat -file=/home/docs/sub/b.txt",
+		"logout",
+	}, "\n")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	dispatcher := commands.NewDispatcher(strings.NewReader(""), &out)
+	runner := New(dispatcher, strings.NewReader(""), &out)
+	if err := runner.RunScript(scriptPath); err != nil {
+		t.Fatalf("RunScript failed: %v", err)
+	}
+	for _, want := range []string{
+		"Archivo o carpeta eliminado: /home/docs/a.txt",
+		"Archivo o carpeta eliminado: /home/docs",
+		"ruta no existe: /home/docs/sub/b.txt",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in output:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestScriptRunsDiskReports(t *testing.T) {
 	resetCLIManagers(t)
 

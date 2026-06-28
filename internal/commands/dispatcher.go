@@ -241,6 +241,16 @@ func (d *Dispatcher) Execute(cmd Command) (bool, error) {
 		}
 		fmt.Fprintf(d.out, "Archivo o carpeta renombrado: %s\n", cmd.Params["path"])
 		return false, nil
+	case "remove":
+		active, actor, err := activeFSActor()
+		if err != nil {
+			return false, err
+		}
+		if err := fs.Remove(active.DiskPath, int64(active.PartitionStart), cmd.Params["path"], actor); err != nil {
+			return false, err
+		}
+		fmt.Fprintf(d.out, "Archivo o carpeta eliminado: %s\n", cmd.Params["path"])
+		return false, nil
 	case "rep":
 		if err := reports.Generate(cmd.Params, d.out); err != nil {
 			return false, err
@@ -408,6 +418,7 @@ func buildSpecs() map[string]commandSpec {
 		"mkfile":  spec([]string{"path", "size", "cont"}, []string{"r"}),
 		"edit":    spec([]string{"path", "contenido"}, nil),
 		"rename":  spec([]string{"path", "name"}, nil),
+		"remove":  spec([]string{"path"}, nil),
 		"cat": {
 			params:     map[string]bool{"file": true},
 			flags:      map[string]bool{},
@@ -421,7 +432,7 @@ func buildSpecs() map[string]commandSpec {
 
 func requiresSession(command string) bool {
 	switch command {
-	case "mkgrp", "rmgrp", "mkusr", "rmusr", "chgrp", "mkdir", "mkfile", "cat", "edit", "rename":
+	case "mkgrp", "rmgrp", "mkusr", "rmusr", "chgrp", "mkdir", "mkfile", "cat", "edit", "rename", "remove":
 		return true
 	default:
 		return false

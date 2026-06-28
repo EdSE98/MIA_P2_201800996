@@ -28,6 +28,7 @@ func NewRouter() http.Handler {
 	mux.HandleFunc("/api/fs/stat", handlers.FSStat)
 	mux.HandleFunc("/api/fs/edit", handlers.EditFile)
 	mux.HandleFunc("/api/fs/rename", handlers.RenameEntry)
+	mux.HandleFunc("/api/fs/remove", handlers.RemoveEntry)
 
 	return recoverJSON(cors(mux))
 }

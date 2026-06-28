@@ -25,6 +25,9 @@ func TestFSOperationsRequireActiveSession(t *testing.T) {
 	if err := RenameEntry(dto.RenameEntryRequest{Path: "/a.txt", Name: "b.txt"}); err == nil {
 		t.Fatal("expected rename session error")
 	}
+	if err := RemoveEntry(dto.RemoveEntryRequest{Path: "/a.txt"}); err == nil {
+		t.Fatal("expected remove session error")
+	}
 }
 
 func TestEditAndRenameServicesUseActiveSession(t *testing.T) {
@@ -53,7 +56,6 @@ func TestEditAndRenameServicesUseActiveSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
 	sb, err := fs.ReadSuperBlock(file, int64(active.PartitionStart))
 	if err != nil {
 		t.Fatal(err)
@@ -68,6 +70,23 @@ func TestEditAndRenameServicesUseActiveSession(t *testing.T) {
 	}
 	if string(content) != "contenido editado" {
 		t.Fatalf("content = %q", content)
+	}
+	file.Close()
+
+	if err := RemoveEntry(dto.RemoveEntryRequest{Path: "/home/docs/b1.txt"}); err != nil {
+		t.Fatalf("RemoveEntry: %v", err)
+	}
+	file, _, err = disk.OpenReadWrite(diskPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	sb, err = fs.ReadSuperBlock(file, int64(active.PartitionStart))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := fs.ResolvePath(file, sb, "/home/docs/b1.txt"); err == nil {
+		t.Fatal("removed entry still exists")
 	}
 }
 

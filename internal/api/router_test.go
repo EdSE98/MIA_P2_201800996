@@ -130,9 +130,14 @@ func TestFSOperationEndpointsRequireSession(t *testing.T) {
 	}{
 		{"/api/fs/edit", `{"path":"/a.txt","contenido":"/tmp/a.txt"}`},
 		{"/api/fs/rename", `{"path":"/a.txt","name":"b.txt"}`},
+		{"/api/fs/remove", `{"path":"/a.txt"}`},
 	}
 	for _, test := range tests {
-		req := httptest.NewRequest(http.MethodPatch, test.path, bytes.NewBufferString(test.body))
+		method := http.MethodPatch
+		if test.path == "/api/fs/remove" {
+			method = http.MethodDelete
+		}
+		req := httptest.NewRequest(method, test.path, bytes.NewBufferString(test.body))
 		rec := httptest.NewRecorder()
 		NewRouter().ServeHTTP(rec, req)
 		if rec.Code != http.StatusBadRequest {

@@ -9,3 +9,7 @@ type RenameEntryRequest struct {
 	Path string `json:"path"`
 	Name string `json:"name"`
 }
+
+type RemoveEntryRequest struct {
+	Path string `json:"path"`
+}

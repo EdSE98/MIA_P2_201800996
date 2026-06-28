@@ -22,6 +22,14 @@ func RenameEntry(req dto.RenameEntryRequest) error {
 	return fs.Rename(active.DiskPath, int64(active.PartitionStart), req.Path, req.Name, actor)
 }
 
+func RemoveEntry(req dto.RemoveEntryRequest) error {
+	active, actor, err := activeFSContext()
+	if err != nil {
+		return err
+	}
+	return fs.Remove(active.DiskPath, int64(active.PartitionStart), req.Path, actor)
+}
+
 func activeFSContext() (session.Session, fs.Actor, error) {
 	active, err := session.RequireActive()
 	if err != nil {
