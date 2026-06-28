@@ -13,3 +13,12 @@ type RenameEntryRequest struct {
 type RemoveEntryRequest struct {
 	Path string `json:"path"`
 }
+
+type TransferEntryRequest struct {
+	Path    string `json:"path"`
+	Destino string `json:"destino"`
+}
+
+type CopyEntryResponse struct {
+	Warnings []string `json:"warnings,omitempty"`
+}

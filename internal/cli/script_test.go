@@ -128,6 +128,55 @@ func TestScriptRunsRemove(t *testing.T) {
 	}
 }
 
+func TestScriptRunsCopyAndMove(t *testing.T) {
+	resetCLIManagers(t)
+	dir := t.TempDir()
+	diskPath := filepath.Join(dir, "copy-move.mia")
+	scriptPath := filepath.Join(dir, "copy-move.smia")
+	script := strings.Join([]string{
+		"mkdisk -size=12 -unit=M -path=\"" + diskPath + "\"",
+		"fdisk -size=10 -unit=M -path=\"" + diskPath + "\" -name=Part1",
+		"mount -path=\"" + diskPath + "\" -name=Part1",
+		"mkfs -id=961A",
+		"login -user=root -pass=123 -id=961A",
+		"mkdir -p -path=/home/docs/sub",
+		"mkdir -p -path=/home/images",
+		"mkdir -p -path=/home/archive",
+		"mkfile -path=/home/docs/a.txt -size=20",
+		"mkfile -path=/home/docs/sub/b.txt -size=150",
+		"copy -path=/home/docs/a.txt -destino=/home/images",
+		"copy -path=/home/docs -destino=/home/images",
+		"move -path=/home/docs/a.txt -destino=/home/archive",
+		"move -path=/home/docs/sub -destino=/home/archive",
+		"cat -file=/home/images/a.txt",
+		"cat -file=/home/images/docs/sub/b.txt",
+		"cat -file=/home/archive/a.txt",
+		"cat -file=/home/archive/sub/b.txt",
+		"logout",
+	}, "\n")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	dispatcher := commands.NewDispatcher(strings.NewReader(""), &out)
+	runner := New(dispatcher, strings.NewReader(""), &out)
+	if err := runner.RunScript(scriptPath); err != nil {
+		t.Fatalf("RunScript failed: %v", err)
+	}
+	for _, want := range []string{
+		"Archivo o carpeta copiado: /home/docs/a.txt",
+		"Archivo o carpeta copiado: /home/docs",
+		"Archivo o carpeta movido: /home/docs/a.txt",
+		"Archivo o carpeta movido: /home/docs/sub",
+		"01234567890123456789",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in output:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestScriptRunsDiskReports(t *testing.T) {
 	resetCLIManagers(t)
 

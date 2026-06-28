@@ -55,3 +55,36 @@ func RemoveEntry(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, dto.Success("archivo o carpeta eliminado", nil))
 }
+
+func CopyEntry(w http.ResponseWriter, r *http.Request) {
+	if !allowMethod(w, r, http.MethodPost) {
+		return
+	}
+	var req dto.TransferEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, dto.Error("json invalido"))
+		return
+	}
+	result, err := services.CopyEntry(req)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, dto.Error(err.Error()))
+		return
+	}
+	writeJSON(w, http.StatusOK, dto.Success("archivo o carpeta copiado", result))
+}
+
+func MoveEntry(w http.ResponseWriter, r *http.Request) {
+	if !allowMethod(w, r, http.MethodPatch) {
+		return
+	}
+	var req dto.TransferEntryRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		writeJSON(w, http.StatusBadRequest, dto.Error("json invalido"))
+		return
+	}
+	if err := services.MoveEntry(req); err != nil {
+		writeJSON(w, http.StatusBadRequest, dto.Error(err.Error()))
+		return
+	}
+	writeJSON(w, http.StatusOK, dto.Success("archivo o carpeta movido", nil))
+}

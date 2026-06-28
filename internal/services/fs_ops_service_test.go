@@ -28,6 +28,12 @@ func TestFSOperationsRequireActiveSession(t *testing.T) {
 	if err := RemoveEntry(dto.RemoveEntryRequest{Path: "/a.txt"}); err == nil {
 		t.Fatal("expected remove session error")
 	}
+	if _, err := CopyEntry(dto.TransferEntryRequest{Path: "/a.txt", Destino: "/dst"}); err == nil {
+		t.Fatal("expected copy session error")
+	}
+	if err := MoveEntry(dto.TransferEntryRequest{Path: "/a.txt", Destino: "/dst"}); err == nil {
+		t.Fatal("expected move session error")
+	}
 }
 
 func TestEditAndRenameServicesUseActiveSession(t *testing.T) {
@@ -90,6 +96,46 @@ func TestEditAndRenameServicesUseActiveSession(t *testing.T) {
 	}
 }
 
+func TestCopyAndMoveServicesUseActiveSession(t *testing.T) {
+	diskPath := setupFSOperationsService(t)
+	if _, err := CopyEntry(dto.TransferEntryRequest{
+		Path: "/home/docs/a.txt", Destino: "/home/images",
+	}); err != nil {
+		t.Fatalf("CopyEntry: %v", err)
+	}
+	if err := MoveEntry(dto.TransferEntryRequest{
+		Path: "/home/docs/m.txt", Destino: "/home/images",
+	}); err != nil {
+		t.Fatalf("MoveEntry: %v", err)
+	}
+
+	active, err := session.RequireActive()
+	if err != nil {
+		t.Fatal(err)
+	}
+	file, _, err := disk.OpenReadWrite(diskPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	sb, err := fs.ReadSuperBlock(file, int64(active.PartitionStart))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := fs.ResolvePath(file, sb, "/home/images/a.txt"); err != nil {
+		t.Fatalf("copied file missing: %v", err)
+	}
+	if _, _, err := fs.ResolvePath(file, sb, "/home/images/m.txt"); err != nil {
+		t.Fatalf("moved file missing: %v", err)
+	}
+	if _, _, err := fs.ResolvePath(file, sb, "/home/docs/a.txt"); err != nil {
+		t.Fatalf("copy removed source: %v", err)
+	}
+	if _, _, err := fs.ResolvePath(file, sb, "/home/docs/m.txt"); err == nil {
+		t.Fatal("move left source entry")
+	}
+}
+
 func setupFSOperationsService(t *testing.T) string {
 	t.Helper()
 	oldMount := mount.Global
@@ -126,7 +172,13 @@ func setupFSOperationsService(t *testing.T) string {
 	if err := fs.Mkdir(path, int64(active.PartitionStart), "/home/docs", true, actor); err != nil {
 		t.Fatal(err)
 	}
+	if err := fs.Mkdir(path, int64(active.PartitionStart), "/home/images", true, actor); err != nil {
+		t.Fatal(err)
+	}
 	if err := fs.Mkfile(path, int64(active.PartitionStart), "/home/docs/a.txt", false, 20, "", actor); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.Mkfile(path, int64(active.PartitionStart), "/home/docs/m.txt", false, 20, "", actor); err != nil {
 		t.Fatal(err)
 	}
 	return path
