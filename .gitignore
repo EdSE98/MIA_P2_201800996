@@ -41,3 +41,9 @@ coverage.out
 .idea/
 .DS_Store
 Thumbs.db
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.env
+web/*.tsbuildinfo
