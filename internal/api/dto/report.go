@@ -10,5 +10,6 @@ type ReportRequest struct {
 type ReportResponse struct {
 	Name        string `json:"name"`
 	Path        string `json:"path"`
+	URL         string `json:"url"`
 	ContentType string `json:"contentType"`
 }

@@ -647,35 +647,69 @@ summary {
   border-top: 1px solid #dbe2ea;
 }
 
-.report-result strong,
-.report-result span {
+.report-meta strong,
+.report-meta span {
   display: block;
 }
 
-.report-result strong {
+.report-meta strong {
   font-size: 11px;
 }
 
-.report-result span,
-.report-result p {
+.report-meta span {
   color: #64748b;
   font-size: 9px;
 }
 
-.report-result code,
-.report-result p {
+.report-preview,
+.report-file-link,
+.technical-label,
+.report-result code {
   grid-column: 1 / -1;
+}
+
+.report-preview {
+  display: block;
+  max-height: 340px;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 4px;
+}
+
+.report-preview img {
+  width: 100%;
+  min-height: 120px;
+  display: block;
+  object-fit: contain;
+}
+
+.report-file-link {
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #087f5b;
+  background: #edf7f3;
+  border: 1px solid #b7dfcf;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.technical-label {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 .report-result code {
   overflow-wrap: anywhere;
   color: #334155;
   font-size: 9px;
-}
-
-.report-result p {
-  margin: 0;
-  line-height: 1.45;
 }
 
 .system-summary dl {

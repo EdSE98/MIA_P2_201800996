@@ -76,6 +76,7 @@ export interface Metadata extends FSItem {
 export interface ReportResult {
   name: string;
   path: string;
+  url: string;
   contentType: string;
 }
 

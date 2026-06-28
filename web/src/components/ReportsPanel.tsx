@@ -1,6 +1,12 @@
 import { useState } from "react";
-import { BarChart3, ExternalLink, FileImage, LoaderCircle } from "lucide-react";
-import { api, ReportResult } from "../api/client";
+import {
+  BarChart3,
+  ExternalLink,
+  FileImage,
+  FileText,
+  LoaderCircle,
+} from "lucide-react";
+import { API_BASE_URL, api, ReportResult } from "../api/client";
 
 const reportNames = ["disk", "tree", "inode", "block", "bm_inode", "bm_block"];
 
@@ -14,6 +20,14 @@ export function ReportsPanel({ activeId, currentPath, onMessage }: Props) {
   const [format, setFormat] = useState("svg");
   const [result, setResult] = useState<ReportResult | null>(null);
   const [busyName, setBusyName] = useState("");
+  const reportURL = result
+    ? result.url.startsWith("http")
+      ? result.url
+      : `${API_BASE_URL}${result.url}`
+    : "";
+  const isImage = result?.contentType.startsWith("image/") ?? false;
+  const isPDF = result?.contentType === "application/pdf";
+  const isText = result?.contentType.startsWith("text/") ?? false;
 
   async function generate(name: string) {
     if (!activeId) {
@@ -50,6 +64,7 @@ export function ReportsPanel({ activeId, currentPath, onMessage }: Props) {
         >
           <option value="svg">SVG</option>
           <option value="png">PNG</option>
+          <option value="pdf">PDF</option>
         </select>
       </div>
       <div className="report-grid">
@@ -71,16 +86,43 @@ export function ReportsPanel({ activeId, currentPath, onMessage }: Props) {
       </div>
       {result && (
         <div className="report-result">
-          <div>
+          <div className="report-meta">
             <strong>{result.name}</strong>
             <span>{result.contentType}</span>
           </div>
-          <ExternalLink size={16} />
+          <a
+            className="icon-button"
+            href={reportURL}
+            target="_blank"
+            rel="noreferrer"
+            title="Abrir reporte"
+          >
+            <ExternalLink size={16} />
+          </a>
+          {isImage && (
+            <a
+              className="report-preview"
+              href={reportURL}
+              target="_blank"
+              rel="noreferrer"
+              title="Abrir reporte en una pestana nueva"
+            >
+              <img src={reportURL} alt={`Reporte ${result.name}`} />
+            </a>
+          )}
+          {(isPDF || isText) && (
+            <a
+              className="report-file-link"
+              href={reportURL}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {isText ? <FileText size={16} /> : <FileImage size={16} />}
+              Abrir {isPDF ? "PDF" : "reporte de texto"}
+            </a>
+          )}
+          <span className="technical-label">Ruta local</span>
           <code>{result.path}</code>
-          <p>
-            La API devuelve una ruta local. La vista embebida se habilitara cuando
-            el backend exponga reportes como archivos estaticos.
-          </p>
         </div>
       )}
     </section>

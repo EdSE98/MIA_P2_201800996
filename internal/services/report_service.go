@@ -2,7 +2,9 @@ package services
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -15,6 +17,7 @@ import (
 const defaultReportsDir = "/home/eduardo/parte2/reportes/api"
 
 var unsafeReportName = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
+var ErrReportFileNotFound = errors.New("archivo de reporte no encontrado")
 
 func ReportsDir() string {
 	if value := strings.TrimSpace(os.Getenv("MIA_REPORTS_DIR")); value != "" {
@@ -63,8 +66,42 @@ func GenerateReport(req dto.ReportRequest) (dto.ReportResponse, error) {
 	return dto.ReportResponse{
 		Name:        reportName,
 		Path:        finalPath,
+		URL:         "/api/report-files/" + url.PathEscape(filepath.Base(finalPath)),
 		ContentType: contentTypeForPath(finalPath),
 	}, nil
+}
+
+func ResolveReportFile(filename string) (string, string, error) {
+	filename = strings.TrimSpace(filename)
+	if filename == "" ||
+		filepath.IsAbs(filename) ||
+		filename != filepath.Base(filename) ||
+		strings.ContainsAny(filename, `/\`+"\x00") {
+		return "", "", fmt.Errorf("nombre de archivo de reporte invalido")
+	}
+
+	baseDir, err := filepath.Abs(ReportsDir())
+	if err != nil {
+		return "", "", fmt.Errorf("resolver carpeta de reportes: %w", err)
+	}
+	targetPath := filepath.Join(baseDir, filename)
+	relative, err := filepath.Rel(baseDir, targetPath)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
+		return "", "", fmt.Errorf("archivo fuera de la carpeta de reportes")
+	}
+
+	info, err := os.Lstat(targetPath)
+	if errors.Is(err, os.ErrNotExist) {
+		return "", "", ErrReportFileNotFound
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("leer archivo de reporte: %w", err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return "", "", fmt.Errorf("archivo de reporte invalido")
+	}
+
+	return targetPath, contentTypeForPath(targetPath), nil
 }
 
 func normalizeReportFormat(reportName string, format string) string {
@@ -99,8 +136,6 @@ func contentTypeForPath(path string) string {
 		return "application/pdf"
 	case ".txt":
 		return "text/plain; charset=utf-8"
-	case ".dot":
-		return "text/vnd.graphviz"
 	default:
 		return "application/octet-stream"
 	}
