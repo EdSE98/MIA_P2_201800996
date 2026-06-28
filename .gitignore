@@ -35,6 +35,7 @@ build/
 *.exe
 *.test
 coverage.out
+/mia-p2-api
 
 # IDE / sistema
 .vscode/
@@ -47,3 +48,12 @@ web/node_modules/
 web/dist/
 web/.env
 web/*.tsbuildinfo
+
+# Variables locales y temporales
+.env
+.env.*
+!.env.example
+!web/.env.example
+*.log
+*.tmp
+tmp/
