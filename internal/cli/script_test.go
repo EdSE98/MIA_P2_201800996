@@ -45,6 +45,49 @@ func TestScriptRunsFdiskResizeAndDelete(t *testing.T) {
 	}
 }
 
+func TestScriptRunsEditAndRename(t *testing.T) {
+	resetCLIManagers(t)
+	dir := t.TempDir()
+	diskPath := filepath.Join(dir, "edit-rename.mia")
+	contentPath := filepath.Join(dir, "new-content.txt")
+	scriptPath := filepath.Join(dir, "edit-rename.smia")
+	if err := os.WriteFile(contentPath, []byte("nuevo contenido CLI"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	script := strings.Join([]string{
+		"mkdisk -size=10 -unit=M -path=\"" + diskPath + "\"",
+		"fdisk -size=8 -unit=M -path=\"" + diskPath + "\" -name=Part1",
+		"mount -path=\"" + diskPath + "\" -name=Part1",
+		"mkfs -id=961A",
+		"login -user=root -pass=123 -id=961A",
+		"mkdir -p -path=/home/docs",
+		"mkfile -path=/home/docs/a.txt -size=20",
+		"edit -path=/home/docs/a.txt -contenido=\"" + contentPath + "\"",
+		"rename -path=/home/docs/a.txt -name=b1.txt",
+		"cat -file=/home/docs/b1.txt",
+		"logout",
+	}, "\n")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	dispatcher := commands.NewDispatcher(strings.NewReader(""), &out)
+	runner := New(dispatcher, strings.NewReader(""), &out)
+	if err := runner.RunScript(scriptPath); err != nil {
+		t.Fatalf("RunScript failed: %v", err)
+	}
+	for _, want := range []string{
+		"Archivo editado: /home/docs/a.txt",
+		"Archivo o carpeta renombrado: /home/docs/a.txt",
+		"nuevo contenido CLI",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in output:\n%s", want, out.String())
+		}
+	}
+}
+
 func TestScriptRunsDiskReports(t *testing.T) {
 	resetCLIManagers(t)
 

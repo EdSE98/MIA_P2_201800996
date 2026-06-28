@@ -221,6 +221,26 @@ func (d *Dispatcher) Execute(cmd Command) (bool, error) {
 		}
 		fmt.Fprintln(d.out, content)
 		return false, nil
+	case "edit":
+		active, actor, err := activeFSActor()
+		if err != nil {
+			return false, err
+		}
+		if err := fs.Edit(active.DiskPath, int64(active.PartitionStart), cmd.Params["path"], cmd.Params["contenido"], actor); err != nil {
+			return false, err
+		}
+		fmt.Fprintf(d.out, "Archivo editado: %s\n", cmd.Params["path"])
+		return false, nil
+	case "rename":
+		active, actor, err := activeFSActor()
+		if err != nil {
+			return false, err
+		}
+		if err := fs.Rename(active.DiskPath, int64(active.PartitionStart), cmd.Params["path"], cmd.Params["name"], actor); err != nil {
+			return false, err
+		}
+		fmt.Fprintf(d.out, "Archivo o carpeta renombrado: %s\n", cmd.Params["path"])
+		return false, nil
 	case "rep":
 		if err := reports.Generate(cmd.Params, d.out); err != nil {
 			return false, err
@@ -386,6 +406,8 @@ func buildSpecs() map[string]commandSpec {
 		"chgrp":   spec([]string{"user", "grp"}, nil),
 		"mkdir":   spec([]string{"path"}, []string{"p"}),
 		"mkfile":  spec([]string{"path", "size", "cont"}, []string{"r"}),
+		"edit":    spec([]string{"path", "contenido"}, nil),
+		"rename":  spec([]string{"path", "name"}, nil),
 		"cat": {
 			params:     map[string]bool{"file": true},
 			flags:      map[string]bool{},
@@ -399,7 +421,7 @@ func buildSpecs() map[string]commandSpec {
 
 func requiresSession(command string) bool {
 	switch command {
-	case "mkgrp", "rmgrp", "mkusr", "rmusr", "chgrp", "mkdir", "mkfile", "cat":
+	case "mkgrp", "rmgrp", "mkusr", "rmusr", "chgrp", "mkdir", "mkfile", "cat", "edit", "rename":
 		return true
 	default:
 		return false

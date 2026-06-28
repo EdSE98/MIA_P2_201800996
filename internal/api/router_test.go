@@ -12,6 +12,7 @@ import (
 	"mia_p1_201800996/internal/api/dto"
 	"mia_p1_201800996/internal/disk"
 	"mia_p1_201800996/internal/partition"
+	"mia_p1_201800996/internal/session"
 )
 
 func TestDisksEndpointReturnsJSON(t *testing.T) {
@@ -115,5 +116,34 @@ func TestPartitionResizeAndDeleteEndpoints(t *testing.T) {
 	}
 	if _, _, err := partition.SearchPartition(path, "Part1"); err == nil {
 		t.Fatal("expected partition deleted through API")
+	}
+}
+
+func TestFSOperationEndpointsRequireSession(t *testing.T) {
+	oldSession := session.Global
+	session.Global = session.NewManager()
+	t.Cleanup(func() { session.Global = oldSession })
+
+	tests := []struct {
+		path string
+		body string
+	}{
+		{"/api/fs/edit", `{"path":"/a.txt","contenido":"/tmp/a.txt"}`},
+		{"/api/fs/rename", `{"path":"/a.txt","name":"b.txt"}`},
+	}
+	for _, test := range tests {
+		req := httptest.NewRequest(http.MethodPatch, test.path, bytes.NewBufferString(test.body))
+		rec := httptest.NewRecorder()
+		NewRouter().ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("%s expected 400, got %d: %s", test.path, rec.Code, rec.Body.String())
+		}
+		var response dto.Response
+		if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+			t.Fatal(err)
+		}
+		if response.OK || response.Error != "necesita iniciar sesion" {
+			t.Fatalf("%s unexpected response: %+v", test.path, response)
+		}
 	}
 }

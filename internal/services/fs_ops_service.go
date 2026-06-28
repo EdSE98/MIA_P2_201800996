@@ -1,0 +1,31 @@
+package services
+
+import (
+	"mia_p1_201800996/internal/api/dto"
+	"mia_p1_201800996/internal/fs"
+	"mia_p1_201800996/internal/session"
+)
+
+func EditFile(req dto.EditFileRequest) error {
+	active, actor, err := activeFSContext()
+	if err != nil {
+		return err
+	}
+	return fs.Edit(active.DiskPath, int64(active.PartitionStart), req.Path, req.Contenido, actor)
+}
+
+func RenameEntry(req dto.RenameEntryRequest) error {
+	active, actor, err := activeFSContext()
+	if err != nil {
+		return err
+	}
+	return fs.Rename(active.DiskPath, int64(active.PartitionStart), req.Path, req.Name, actor)
+}
+
+func activeFSContext() (session.Session, fs.Actor, error) {
+	active, err := session.RequireActive()
+	if err != nil {
+		return session.Session{}, fs.Actor{}, err
+	}
+	return active, fs.Actor{User: active.User, UID: active.UID, GID: active.GID}, nil
+}
