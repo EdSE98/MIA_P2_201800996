@@ -4,6 +4,7 @@ import { api, Disk } from "../api/client";
 
 interface Props {
   selectedPath: string;
+  refreshKey: number;
   onSelect: (path: string) => void;
   onMessage: (message: string, kind?: "success" | "error") => void;
 }
@@ -13,7 +14,12 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function DiskPanel({ selectedPath, onSelect, onMessage }: Props) {
+export function DiskPanel({
+  selectedPath,
+  refreshKey,
+  onSelect,
+  onMessage,
+}: Props) {
   const [disks, setDisks] = useState<Disk[]>([]);
   const [path, setPath] = useState("/home/eduardo/mia/cali/disco.dsk");
   const [size, setSize] = useState(20);
@@ -25,7 +31,11 @@ export function DiskPanel({ selectedPath, onSelect, onMessage }: Props) {
     setBusy(true);
     try {
       const response = await api.disks();
-      setDisks(response.data ?? []);
+      const loaded = response.data ?? [];
+      setDisks(loaded);
+      if (selectedPath && !loaded.some((disk) => disk.path === selectedPath)) {
+        onSelect("");
+      }
     } catch (error) {
       onMessage((error as Error).message, "error");
     } finally {
@@ -35,7 +45,7 @@ export function DiskPanel({ selectedPath, onSelect, onMessage }: Props) {
 
   useEffect(() => {
     void loadDisks();
-  }, []);
+  }, [refreshKey]);
 
   async function createDisk(event: FormEvent) {
     event.preventDefault();

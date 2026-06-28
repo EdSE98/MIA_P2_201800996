@@ -156,3 +156,36 @@ func TestFSOperationEndpointsRequireSession(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandExecuteEndpoint(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "command-api.dsk")
+	body, err := json.Marshal(dto.ExecuteCommandRequest{
+		Command: `mkdisk -size=1 -unit=M -path="` + path + `"`,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/api/commands/execute", bytes.NewReader(body))
+	rec := httptest.NewRecorder()
+	NewRouter().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var response dto.Response
+	if err := json.NewDecoder(rec.Body).Decode(&response); err != nil {
+		t.Fatal(err)
+	}
+	if !response.OK || response.Message != "comando ejecutado" {
+		t.Fatalf("unexpected response: %+v", response)
+	}
+}
+
+func TestCommandExecuteEndpointRejectsMultiline(t *testing.T) {
+	body := bytes.NewBufferString(`{"command":"mkdir -path=/a\nlogout"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/commands/execute", body)
+	rec := httptest.NewRecorder()
+	NewRouter().ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}

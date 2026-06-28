@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Activity, Boxes, Server, X } from "lucide-react";
-import { api, Session } from "./api/client";
+import { api, CommandExecution, Session } from "./api/client";
+import { CommandConsole } from "./components/CommandConsole";
 import { DiskPanel } from "./components/DiskPanel";
 import { FileExplorer } from "./components/FileExplorer";
 import { FileOperationsPanel } from "./components/FileOperationsPanel";
@@ -33,6 +34,28 @@ export default function App() {
   function sessionChanged(nextSession: Session | null) {
     setSession(nextSession);
     if (nextSession?.mountedId) setActiveId(nextSession.mountedId);
+  }
+
+  async function commandExecuted(result: CommandExecution) {
+    setSession(result.session ?? null);
+    if (result.session?.mountedId) {
+      setActiveId(result.session.mountedId);
+    } else {
+      const mountedMatch = result.output.match(/ID:\s*([A-Za-z0-9]+)/i);
+      if (mountedMatch) setActiveId(mountedMatch[1]);
+    }
+    dataChanged();
+    try {
+      const response = await api.mounts();
+      const mounts = response.data ?? [];
+      setActiveId((current) =>
+        current && mounts.some((mounted) => mounted.id.toLowerCase() === current.toLowerCase())
+          ? current
+          : result.session?.mountedId || "",
+      );
+    } catch {
+      // The command output remains useful even if mount reconciliation fails.
+    }
   }
 
   useEffect(() => {
@@ -78,11 +101,13 @@ export default function App() {
           />
           <DiskPanel
             selectedPath={selectedDisk}
+            refreshKey={dataRevision}
             onSelect={setSelectedDisk}
             onMessage={showMessage}
           />
           <PartitionPanel
             diskPath={selectedDisk}
+            refreshKey={dataRevision}
             activeId={activeId}
             sessionId={session?.mountedId || ""}
             onActiveId={setActiveId}
@@ -100,6 +125,10 @@ export default function App() {
         />
 
         <aside className="right-panel">
+          <CommandConsole
+            onExecuted={(result) => void commandExecuted(result)}
+            onMessage={showMessage}
+          />
           <FileOperationsPanel
             enabled={Boolean(session)}
             onChanged={dataChanged}

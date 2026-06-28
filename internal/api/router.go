@@ -31,6 +31,7 @@ func NewRouter() http.Handler {
 	mux.HandleFunc("/api/fs/remove", handlers.RemoveEntry)
 	mux.HandleFunc("/api/fs/copy", handlers.CopyEntry)
 	mux.HandleFunc("/api/fs/move", handlers.MoveEntry)
+	mux.HandleFunc("/api/commands/execute", handlers.ExecuteCommand)
 
 	return recoverJSON(cors(mux))
 }

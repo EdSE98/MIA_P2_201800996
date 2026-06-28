@@ -173,7 +173,8 @@ button:disabled {
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   min-width: 0;
   height: 34px;
@@ -186,9 +187,16 @@ select {
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: #0e8c61;
   box-shadow: 0 0 0 2px rgba(14, 140, 97, 0.12);
+}
+
+textarea {
+  min-height: 42px;
+  padding: 8px 9px;
+  resize: vertical;
 }
 
 .input-with-icon {
@@ -710,6 +718,117 @@ summary {
   font-size: 9px;
   font-weight: 500;
   line-height: 1.35;
+}
+
+.console-input {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 30px;
+  align-items: start;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 7px;
+  color: #76d4ae;
+  background: #171c26;
+  border: 1px solid #303846;
+  border-radius: 5px;
+}
+
+.console-input > svg {
+  margin-top: 8px;
+}
+
+.console-input textarea {
+  min-height: 46px;
+  padding: 5px 3px;
+  color: #e5e7eb;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  resize: none;
+  font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.console-input textarea:focus {
+  border: 0;
+  box-shadow: none;
+}
+
+.console-run {
+  margin-top: 4px;
+  color: #8ce8c1;
+}
+
+.console-run:hover {
+  color: #071b13;
+  background: #76d4ae;
+  border-color: #76d4ae;
+}
+
+.quick-commands {
+  display: flex;
+  gap: 4px;
+  margin-top: 7px;
+  overflow-x: auto;
+  padding-bottom: 3px;
+}
+
+.quick-commands button {
+  min-width: max-content;
+  height: 25px;
+  padding: 0 7px;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #dbe2ea;
+  border-radius: 3px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.quick-commands button:hover {
+  color: #087f5b;
+  background: #edf7f3;
+  border-color: #b7dfcf;
+}
+
+.console-history {
+  max-height: 300px;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+
+.console-entry {
+  padding: 8px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.console-entry > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.console-entry.success > div {
+  color: #087f5b;
+}
+
+.console-entry.error > div {
+  color: #b42318;
+}
+
+.console-entry code {
+  min-width: 0;
+  color: #334155;
+  overflow-wrap: anywhere;
+  font-size: 9px;
+}
+
+.console-entry pre {
+  margin: 6px 0 0 18px;
+  overflow: auto;
+  color: #475569;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 9px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 .report-grid {

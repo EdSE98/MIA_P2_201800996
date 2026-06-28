@@ -13,6 +13,7 @@ import { api, MountedPartition, Partition } from "../api/client";
 
 interface Props {
   diskPath: string;
+  refreshKey: number;
   activeId: string;
   sessionId: string;
   onActiveId: (id: string) => void;
@@ -23,6 +24,7 @@ interface Props {
 
 export function PartitionPanel({
   diskPath,
+  refreshKey,
   activeId,
   sessionId,
   onActiveId,
@@ -81,7 +83,7 @@ export function PartitionPanel({
 
   useEffect(() => {
     void load();
-  }, [diskPath]);
+  }, [diskPath, refreshKey]);
 
   async function createPartition(event: FormEvent) {
     event.preventDefault();

@@ -84,6 +84,12 @@ export interface CopyResult {
   warnings?: string[];
 }
 
+export interface CommandExecution {
+  command: string;
+  output: string;
+  session?: Session;
+}
+
 async function request<T>(
   route: string,
   options: RequestInit = {},
@@ -220,6 +226,11 @@ export const api = {
     request<null>("/api/fs/move", {
       method: "PATCH",
       body: JSON.stringify({ path, destino }),
+    }),
+  executeCommand: (command: string) =>
+    request<CommandExecution>("/api/commands/execute", {
+      method: "POST",
+      body: JSON.stringify({ command }),
     }),
   report: (body: {
     id: string;
