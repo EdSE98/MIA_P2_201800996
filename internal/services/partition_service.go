@@ -7,6 +7,7 @@ import (
 	"mia_p1_201800996/internal/api/dto"
 	"mia_p1_201800996/internal/binio"
 	"mia_p1_201800996/internal/disk"
+	"mia_p1_201800996/internal/mount"
 	"mia_p1_201800996/internal/partition"
 	"mia_p1_201800996/internal/structs"
 )
@@ -73,6 +74,29 @@ func CreatePartition(req dto.CreatePartitionRequest) error {
 		Type: req.Type,
 		Fit:  req.Fit,
 		Name: req.Name,
+	})
+}
+
+func DeletePartition(req dto.DeletePartitionRequest) error {
+	if mount.Global.IsMounted(req.Path, req.Name) {
+		return fmt.Errorf("no se puede eliminar una particion montada")
+	}
+	return partition.Delete(partition.DeleteOptions{
+		Path: req.Path,
+		Name: req.Name,
+		Mode: req.Delete,
+	})
+}
+
+func ResizePartition(req dto.ResizePartitionRequest) error {
+	if mount.Global.IsMounted(req.Path, req.Name) {
+		return fmt.Errorf("no se puede redimensionar una particion montada")
+	}
+	return partition.Resize(partition.ResizeOptions{
+		Path: req.Path,
+		Name: req.Name,
+		Add:  req.Add,
+		Unit: req.Unit,
 	})
 }
 

@@ -9,8 +9,41 @@ import (
 
 	"mia_p1_201800996/internal/commands"
 	"mia_p1_201800996/internal/mount"
+	"mia_p1_201800996/internal/partition"
 	"mia_p1_201800996/internal/session"
 )
+
+func TestScriptRunsFdiskResizeAndDelete(t *testing.T) {
+	resetCLIManagers(t)
+	dir := t.TempDir()
+	diskPath := filepath.Join(dir, "fdisk-operations.mia")
+	scriptPath := filepath.Join(dir, "fdisk-operations.smia")
+	script := strings.Join([]string{
+		"mkdisk -size=3 -unit=M -path=\"" + diskPath + "\"",
+		"fdisk -size=512 -unit=K -path=\"" + diskPath + "\" -name=Part1",
+		"fdisk -add=128 -unit=K -path=\"" + diskPath + "\" -name=Part1",
+		"fdisk -add=-64 -unit=K -path=\"" + diskPath + "\" -name=Part1",
+		"fdisk -delete=fast -path=\"" + diskPath + "\" -name=Part1",
+	}, "\n")
+	if err := os.WriteFile(scriptPath, []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	var out bytes.Buffer
+	dispatcher := commands.NewDispatcher(strings.NewReader(""), &out)
+	runner := New(dispatcher, strings.NewReader(""), &out)
+	if err := runner.RunScript(scriptPath); err != nil {
+		t.Fatalf("RunScript failed: %v", err)
+	}
+	for _, want := range []string{"Particion redimensionada: Part1", "Particion eliminada: Part1"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("expected %q in output:\n%s", want, out.String())
+		}
+	}
+	if _, _, err := partition.SearchPartition(diskPath, "Part1"); err == nil {
+		t.Fatal("expected partition to be deleted")
+	}
+}
 
 func TestScriptRunsDiskReports(t *testing.T) {
 	resetCLIManagers(t)

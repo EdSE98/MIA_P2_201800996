@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,8 @@ import (
 	"testing"
 
 	"mia_p1_201800996/internal/api/dto"
+	"mia_p1_201800996/internal/disk"
+	"mia_p1_201800996/internal/partition"
 )
 
 func TestDisksEndpointReturnsJSON(t *testing.T) {
@@ -71,5 +74,46 @@ func TestReportFilesRejectsPathTraversal(t *testing.T) {
 
 	if rec.Code == http.StatusOK {
 		t.Fatalf("path traversal unexpectedly succeeded: %s", rec.Body.String())
+	}
+}
+
+func TestPartitionResizeAndDeleteEndpoints(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "api-fdisk.dsk")
+	if err := disk.MakeDisk(disk.MakeDiskOptions{Size: 3, Unit: "M", Path: path}); err != nil {
+		t.Fatal(err)
+	}
+	if err := partition.Create(partition.CreateOptions{
+		Size: 512, Unit: "K", Path: path, Type: "P", Name: "Part1",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	resizeBody, err := json.Marshal(dto.ResizePartitionRequest{
+		Path: path, Name: "Part1", Add: 128, Unit: "K",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPatch, "/api/partitions/resize", bytes.NewReader(resizeBody))
+	rec := httptest.NewRecorder()
+	NewRouter().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("resize expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	deleteBody, err := json.Marshal(dto.DeletePartitionRequest{
+		Path: path, Name: "Part1", Delete: "fast",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	req = httptest.NewRequest(http.MethodDelete, "/api/partitions", bytes.NewReader(deleteBody))
+	rec = httptest.NewRecorder()
+	NewRouter().ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if _, _, err := partition.SearchPartition(path, "Part1"); err == nil {
+		t.Fatal("expected partition deleted through API")
 	}
 }

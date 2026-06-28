@@ -78,10 +78,31 @@ func (d *Dispatcher) Execute(cmd Command) (bool, error) {
 		}
 		return false, nil
 	case "fdisk":
-		if err := partition.CreateFromParams(cmd.Params); err != nil {
-			return false, err
+		_, hasAdd := cmd.Params["add"]
+		_, hasDelete := cmd.Params["delete"]
+		if hasAdd && hasDelete {
+			return false, fmt.Errorf("fdisk no permite usar -add y -delete al mismo tiempo")
 		}
-		fmt.Fprintf(d.out, "Particion creada: %s\n", cmd.Params["name"])
+		if (hasAdd || hasDelete) && mount.Global.IsMounted(cmd.Params["path"], cmd.Params["name"]) {
+			return false, fmt.Errorf("no se puede modificar una particion montada")
+		}
+		switch {
+		case hasAdd:
+			if err := partition.ResizeFromParams(cmd.Params); err != nil {
+				return false, err
+			}
+			fmt.Fprintf(d.out, "Particion redimensionada: %s\n", cmd.Params["name"])
+		case hasDelete:
+			if err := partition.DeleteFromParams(cmd.Params); err != nil {
+				return false, err
+			}
+			fmt.Fprintf(d.out, "Particion eliminada: %s\n", cmd.Params["name"])
+		default:
+			if err := partition.CreateFromParams(cmd.Params); err != nil {
+				return false, err
+			}
+			fmt.Fprintf(d.out, "Particion creada: %s\n", cmd.Params["name"])
+		}
 		return false, nil
 	case "mount":
 		mounted, err := mount.Global.Mount(cmd.Params["path"], cmd.Params["name"])
@@ -352,7 +373,7 @@ func buildSpecs() map[string]commandSpec {
 	return map[string]commandSpec{
 		"mkdisk":  spec([]string{"size", "fit", "unit", "path"}, nil),
 		"rmdisk":  spec([]string{"path"}, nil),
-		"fdisk":   spec([]string{"size", "unit", "path", "type", "fit", "name"}, nil),
+		"fdisk":   spec([]string{"size", "unit", "path", "type", "fit", "name", "add", "delete"}, nil),
 		"mount":   spec([]string{"path", "name"}, nil),
 		"unmount": spec([]string{"id"}, nil),
 		"mkfs":    spec([]string{"id", "type"}, nil),

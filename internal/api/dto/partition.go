@@ -17,3 +17,16 @@ type CreatePartitionRequest struct {
 	Type string `json:"type"`
 	Fit  string `json:"fit"`
 }
+
+type DeletePartitionRequest struct {
+	Path   string `json:"path"`
+	Name   string `json:"name"`
+	Delete string `json:"delete"`
+}
+
+type ResizePartitionRequest struct {
+	Path string `json:"path"`
+	Name string `json:"name"`
+	Add  int64  `json:"add"`
+	Unit string `json:"unit"`
+}
