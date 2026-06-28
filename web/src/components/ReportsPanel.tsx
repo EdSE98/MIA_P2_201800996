@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   ExternalLink,
@@ -13,10 +13,16 @@ const reportNames = ["disk", "tree", "inode", "block", "bm_inode", "bm_block"];
 interface Props {
   activeId: string;
   currentPath: string;
+  refreshKey: number;
   onMessage: (message: string, kind?: "success" | "error") => void;
 }
 
-export function ReportsPanel({ activeId, currentPath, onMessage }: Props) {
+export function ReportsPanel({
+  activeId,
+  currentPath,
+  refreshKey,
+  onMessage,
+}: Props) {
   const [format, setFormat] = useState("svg");
   const [result, setResult] = useState<ReportResult | null>(null);
   const [busyName, setBusyName] = useState("");
@@ -28,6 +34,10 @@ export function ReportsPanel({ activeId, currentPath, onMessage }: Props) {
   const isImage = result?.contentType.startsWith("image/") ?? false;
   const isPDF = result?.contentType === "application/pdf";
   const isText = result?.contentType.startsWith("text/") ?? false;
+
+  useEffect(() => {
+    if (refreshKey > 0) setResult(null);
+  }, [refreshKey]);
 
   async function generate(name: string) {
     if (!activeId) {

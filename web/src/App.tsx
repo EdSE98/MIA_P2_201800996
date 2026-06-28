@@ -3,6 +3,7 @@ import { Activity, Boxes, Server, X } from "lucide-react";
 import { api, Session } from "./api/client";
 import { DiskPanel } from "./components/DiskPanel";
 import { FileExplorer } from "./components/FileExplorer";
+import { FileOperationsPanel } from "./components/FileOperationsPanel";
 import { LoginPanel } from "./components/LoginPanel";
 import { PartitionPanel } from "./components/PartitionPanel";
 import { ReportsPanel } from "./components/ReportsPanel";
@@ -18,9 +19,20 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [apiOnline, setApiOnline] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [dataRevision, setDataRevision] = useState(0);
+  const [currentFSPath, setCurrentFSPath] = useState("/");
 
   function showMessage(text: string, kind: "success" | "error" = "success") {
     setNotice({ text, kind });
+  }
+
+  function dataChanged() {
+    setDataRevision((current) => current + 1);
+  }
+
+  function sessionChanged(nextSession: Session | null) {
+    setSession(nextSession);
+    if (nextSession?.mountedId) setActiveId(nextSession.mountedId);
   }
 
   useEffect(() => {
@@ -61,7 +73,7 @@ export default function App() {
           <LoginPanel
             activeId={activeId}
             session={session}
-            onSessionChange={setSession}
+            onSessionChange={sessionChanged}
             onMessage={showMessage}
           />
           <DiskPanel
@@ -72,17 +84,31 @@ export default function App() {
           <PartitionPanel
             diskPath={selectedDisk}
             activeId={activeId}
+            sessionId={session?.mountedId || ""}
             onActiveId={setActiveId}
+            onSessionInvalidated={() => setSession(null)}
+            onDataChanged={dataChanged}
             onMessage={showMessage}
           />
         </aside>
 
-        <FileExplorer activeId={activeId} onMessage={showMessage} />
+        <FileExplorer
+          activeId={activeId}
+          refreshKey={dataRevision}
+          onPathChange={setCurrentFSPath}
+          onMessage={showMessage}
+        />
 
         <aside className="right-panel">
+          <FileOperationsPanel
+            enabled={Boolean(session)}
+            onChanged={dataChanged}
+            onMessage={showMessage}
+          />
           <ReportsPanel
             activeId={activeId}
-            currentPath="/"
+            currentPath={currentFSPath}
+            refreshKey={dataRevision}
             onMessage={showMessage}
           />
           <section className="tool-section system-summary">

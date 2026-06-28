@@ -5,6 +5,8 @@ import {
   Link2Off,
   Plus,
   RefreshCw,
+  Scaling,
+  Trash2,
   WandSparkles,
 } from "lucide-react";
 import { api, MountedPartition, Partition } from "../api/client";
@@ -12,14 +14,20 @@ import { api, MountedPartition, Partition } from "../api/client";
 interface Props {
   diskPath: string;
   activeId: string;
+  sessionId: string;
   onActiveId: (id: string) => void;
+  onSessionInvalidated: () => void;
+  onDataChanged: () => void;
   onMessage: (message: string, kind?: "success" | "error") => void;
 }
 
 export function PartitionPanel({
   diskPath,
   activeId,
+  sessionId,
   onActiveId,
+  onSessionInvalidated,
+  onDataChanged,
   onMessage,
 }: Props) {
   const [partitions, setPartitions] = useState<Partition[]>([]);
@@ -29,6 +37,10 @@ export function PartitionPanel({
   const [unit, setUnit] = useState("M");
   const [type, setType] = useState("P");
   const [fit, setFit] = useState("FF");
+  const [managedName, setManagedName] = useState("");
+  const [resizeAmount, setResizeAmount] = useState(1);
+  const [resizeUnit, setResizeUnit] = useState("M");
+  const [deleteMode, setDeleteMode] = useState("fast");
   const [busy, setBusy] = useState(false);
 
   const mountedByName = useMemo(
@@ -52,8 +64,14 @@ export function PartitionPanel({
         api.partitions(diskPath),
         api.mounts(),
       ]);
-      setPartitions(partitionResponse.data ?? []);
+      const loaded = partitionResponse.data ?? [];
+      setPartitions(loaded);
       setMounts(mountResponse.data ?? []);
+      setManagedName((current) =>
+        loaded.some((partition) => partition.name === current)
+          ? current
+          : loaded[0]?.name || "",
+      );
     } catch (error) {
       onMessage((error as Error).message, "error");
     } finally {
@@ -79,6 +97,7 @@ export function PartitionPanel({
       });
       onMessage(response.message || "Particion creada", "success");
       await load();
+      onDataChanged();
     } catch (error) {
       onMessage((error as Error).message, "error");
       setBusy(false);
@@ -107,6 +126,9 @@ export function PartitionPanel({
     try {
       const response = await api.unmount(mounted.id);
       if (activeId.toLowerCase() === mounted.id.toLowerCase()) onActiveId("");
+      if (sessionId.toLowerCase() === mounted.id.toLowerCase()) {
+        onSessionInvalidated();
+      }
       onMessage(response.message || "Particion desmontada", "success");
       await load();
     } catch (error) {
@@ -122,9 +144,55 @@ export function PartitionPanel({
       const response = await api.mkfs(mounted.id);
       onActiveId(mounted.id);
       onMessage(response.message || "Particion formateada", "success");
+      onDataChanged();
     } catch (error) {
       onMessage((error as Error).message, "error");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resizePartition(event: FormEvent) {
+    event.preventDefault();
+    if (!managedName) {
+      onMessage("Selecciona una particion", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const response = await api.resizePartition({
+        path: diskPath,
+        name: managedName,
+        add: resizeAmount,
+        unit: resizeUnit,
+      });
+      onMessage(response.message || "Particion redimensionada", "success");
+      await load();
+      onDataChanged();
+    } catch (error) {
+      onMessage((error as Error).message, "error");
+      setBusy(false);
+    }
+  }
+
+  async function deletePartition() {
+    if (!managedName) {
+      onMessage("Selecciona una particion", "error");
+      return;
+    }
+    if (!window.confirm(`Eliminar ${managedName} en modo ${deleteMode}?`)) return;
+    setBusy(true);
+    try {
+      const response = await api.deletePartition({
+        path: diskPath,
+        name: managedName,
+        delete: deleteMode,
+      });
+      onMessage(response.message || "Particion eliminada", "success");
+      await load();
+      onDataChanged();
+    } catch (error) {
+      onMessage((error as Error).message, "error");
       setBusy(false);
     }
   }
@@ -251,6 +319,76 @@ export function PartitionPanel({
             <Plus size={16} /> Crear
           </button>
         </form>
+      </details>
+      <details>
+        <summary><Scaling size={15} /> Administrar particion</summary>
+        <div className="compact-form">
+          <label>
+            Particion
+            <select
+              value={managedName}
+              onChange={(event) => setManagedName(event.target.value)}
+              disabled={partitions.length === 0}
+            >
+              {partitions.map((partition) => (
+                <option key={`manage-${partition.name}`} value={partition.name}>
+                  {partition.name} ({partition.type})
+                </option>
+              ))}
+            </select>
+          </label>
+          <form className="partition-operation" onSubmit={resizePartition}>
+            <label>
+              Add
+              <input
+                type="number"
+                value={resizeAmount}
+                onChange={(event) => setResizeAmount(Number(event.target.value))}
+                required
+              />
+            </label>
+            <label>
+              Unidad
+              <select
+                value={resizeUnit}
+                onChange={(event) => setResizeUnit(event.target.value)}
+              >
+                <option value="B">Bytes</option>
+                <option value="K">KB</option>
+                <option value="M">MB</option>
+              </select>
+            </label>
+            <button
+              className="primary-button"
+              disabled={busy || !managedName || mountedByName.has(managedName)}
+            >
+              <Scaling size={15} /> Aplicar resize
+            </button>
+          </form>
+          <div className="partition-operation delete-operation">
+            <label>
+              Modo delete
+              <select
+                value={deleteMode}
+                onChange={(event) => setDeleteMode(event.target.value)}
+              >
+                <option value="fast">Fast</option>
+                <option value="full">Full</option>
+              </select>
+            </label>
+            <button
+              className="danger-button"
+              type="button"
+              disabled={busy || !managedName || mountedByName.has(managedName)}
+              onClick={() => void deletePartition()}
+            >
+              <Trash2 size={15} /> Eliminar particion
+            </button>
+          </div>
+          {mountedByName.has(managedName) && (
+            <p className="form-note">Desmonta la particion antes de modificarla.</p>
+          )}
+        </div>
       </details>
     </section>
   );

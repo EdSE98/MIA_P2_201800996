@@ -10,6 +10,8 @@ import { api, FileContent, FSItem, Metadata } from "../api/client";
 
 interface Props {
   activeId: string;
+  refreshKey: number;
+  onPathChange: (path: string) => void;
   onMessage: (message: string, kind?: "success" | "error") => void;
 }
 
@@ -20,26 +22,46 @@ function parentPath(path: string) {
   return parts.length ? `/${parts.join("/")}` : "/";
 }
 
-export function FileExplorer({ activeId, onMessage }: Props) {
+export function FileExplorer({
+  activeId,
+  refreshKey,
+  onPathChange,
+  onMessage,
+}: Props) {
   const [path, setPath] = useState("/");
   const [items, setItems] = useState<FSItem[]>([]);
   const [selected, setSelected] = useState<Metadata | null>(null);
   const [content, setContent] = useState<FileContent | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function loadDirectory(nextPath = path) {
+  async function loadDirectory(nextPath = path, fallbackToRoot = false) {
     if (!activeId) {
       setItems([]);
+      setSelected(null);
+      setContent(null);
       return;
     }
     setBusy(true);
+    setSelected(null);
+    setContent(null);
     try {
       const response = await api.listFS(activeId, nextPath);
       setItems(response.data?.items ?? []);
       setPath(nextPath);
-      setSelected(null);
-      setContent(null);
+      onPathChange(nextPath);
     } catch (error) {
+      if (fallbackToRoot && nextPath !== "/") {
+        try {
+          const response = await api.listFS(activeId, "/");
+          setItems(response.data?.items ?? []);
+          setPath("/");
+          onPathChange("/");
+          onMessage("La ruta actual cambio; se regreso a la raiz", "success");
+          return;
+        } catch {
+          // Preserve the original operation error below.
+        }
+      }
       onMessage((error as Error).message, "error");
     } finally {
       setBusy(false);
@@ -48,8 +70,15 @@ export function FileExplorer({ activeId, onMessage }: Props) {
 
   useEffect(() => {
     setPath("/");
+    onPathChange("/");
     void loadDirectory("/");
   }, [activeId]);
+
+  useEffect(() => {
+    if (refreshKey > 0 && activeId) {
+      void loadDirectory(path, true);
+    }
+  }, [refreshKey]);
 
   async function openItem(item: FSItem) {
     if (item.type === "directory") {

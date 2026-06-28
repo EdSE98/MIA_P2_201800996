@@ -80,6 +80,10 @@ export interface ReportResult {
   contentType: string;
 }
 
+export interface CopyResult {
+  warnings?: string[];
+}
+
 async function request<T>(
   route: string,
   options: RequestInit = {},
@@ -146,6 +150,25 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  resizePartition: (body: {
+    path: string;
+    name: string;
+    add: number;
+    unit: string;
+  }) =>
+    request<null>("/api/partitions/resize", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  deletePartition: (body: {
+    path: string;
+    name: string;
+    delete: string;
+  }) =>
+    request<null>("/api/partitions", {
+      method: "DELETE",
+      body: JSON.stringify(body),
+    }),
   mount: (path: string, name: string) =>
     request<MountedPartition>("/api/mount", {
       method: "POST",
@@ -173,6 +196,31 @@ export const api = {
     request<Metadata>(
       `/api/fs/stat?id=${encodeURIComponent(id)}&path=${encodeURIComponent(path)}`,
     ),
+  editFile: (path: string, contenido: string) =>
+    request<null>("/api/fs/edit", {
+      method: "PATCH",
+      body: JSON.stringify({ path, contenido }),
+    }),
+  renamePath: (path: string, name: string) =>
+    request<null>("/api/fs/rename", {
+      method: "PATCH",
+      body: JSON.stringify({ path, name }),
+    }),
+  removePath: (path: string) =>
+    request<null>("/api/fs/remove", {
+      method: "DELETE",
+      body: JSON.stringify({ path }),
+    }),
+  copyPath: (path: string, destino: string) =>
+    request<CopyResult>("/api/fs/copy", {
+      method: "POST",
+      body: JSON.stringify({ path, destino }),
+    }),
+  movePath: (path: string, destino: string) =>
+    request<null>("/api/fs/move", {
+      method: "PATCH",
+      body: JSON.stringify({ path, destino }),
+    }),
   report: (body: {
     id: string;
     name: string;

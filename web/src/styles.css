@@ -213,7 +213,8 @@ select:focus {
 }
 
 .primary-button,
-.report-button {
+.report-button,
+.danger-button {
   min-height: 34px;
   display: inline-flex;
   align-items: center;
@@ -230,6 +231,16 @@ select:focus {
 .primary-button:hover,
 .report-button:hover {
   background: #066a4c;
+}
+
+.danger-button {
+  color: #ffffff;
+  background: #b42318;
+  border: 1px solid #b42318;
+}
+
+.danger-button:hover {
+  background: #8f1d14;
 }
 
 .icon-button {
@@ -383,6 +394,37 @@ summary {
 .partition-main strong,
 .partition-main small {
   display: block;
+}
+
+.partition-operation {
+  display: grid;
+  grid-template-columns: minmax(70px, 1fr) 78px;
+  gap: 8px;
+  padding: 10px 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.partition-operation label {
+  display: grid;
+  gap: 5px;
+  color: #4b5563;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.partition-operation button {
+  grid-column: 1 / -1;
+}
+
+.delete-operation {
+  grid-template-columns: 1fr;
+}
+
+.form-note {
+  margin: 0;
+  color: #7c5b12;
+  font-size: 10px;
+  line-height: 1.4;
 }
 
 .partition-main strong {
@@ -619,6 +661,55 @@ summary {
   height: 28px;
   padding: 0 6px;
   font-size: 10px;
+}
+
+.operation-tabs {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 3px;
+  margin-top: 10px;
+  padding: 3px;
+  background: #e9edf2;
+  border-radius: 5px;
+}
+
+.operation-tabs button {
+  min-width: 0;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  padding: 2px;
+  color: #64748b;
+  background: transparent;
+  border: 0;
+  border-radius: 3px;
+}
+
+.operation-tabs button:hover {
+  color: #1f2937;
+  background: #f8fafc;
+}
+
+.operation-tabs button.active {
+  color: #087f5b;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.operation-tabs span {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 8px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+}
+
+.operation-form label small {
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .report-grid {
